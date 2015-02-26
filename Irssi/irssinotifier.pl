@@ -363,32 +363,43 @@ sub read_pipe {
 
 sub encrypt {
     my ($text) = @_ ? shift : $_;
-    my $password = Irssi::settings_get_str('irssinotifier_encryption_password');
 
-    my ($r,$w);
-    pipe $r, $w;
 
-    # disable close-on-exec
-    my $flags = fcntl($r, F_GETFD, 0) or die "fcntl F_GETFD: $!";
-    fcntl($r, F_SETFD, $flags & ~FD_CLOEXEC) or die "fcntl F_SETFD: $!";
+    my $cipher = Crypt::GCrypt->new(
+	type => 'cipher',
+	algorithm => 'aes128',
+	mode => 'cbc'
+	);
 
-    my $rfn = fileno($r);
-    my $pid = open2(my $out, my $in, qw(openssl enc -aes-128-cbc -salt -base64 -A -pass), "fd:$rfn");
+    my ($seed, $rand);
 
-    print $w "$password";
-    close $w;
+    if (open RAND, '/dev/random') {
+	read(RAND,$rand,4);
+	$seed=hex(unpack("H*", $rand));
+    } else {
+	Irssi::print("Warning: Unable to read from /dev/random, seeding RNG with current time instead");
+	$seed=time
+    }
 
-    print $in "$text ";
-    close $in;
+    my $rng = Math::Random::ISAAC->new($seed);
 
-    my $result = do { local $/; <$out> };
+    my $salt = pack "L2", $rng->irand(), $rng->irand();
+    my $password=Irssi::settings_get_str('irssinotifier_encryption_password');
+    my $key=md5($password . $salt);
+    my $iv=md5($key . $password . $salt);
 
-    waitpid $pid, 0;
-    close $r;
+    $cipher->start('encrypting');
+    $cipher->setkey($key);
+    $cipher->setiv($iv);
+    my $ciphertext  = $cipher->encrypt($text . ' ');
+    $ciphertext .= $cipher->finish;
 
+    my $result=encode_base64('Salted__' . $salt . $ciphertext);
     $result =~ tr[+/][-_];
     $result =~ s/=//g;
+
     return $result;
+
 }
 
 sub are_settings_valid {
