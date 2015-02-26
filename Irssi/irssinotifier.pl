@@ -267,14 +267,14 @@ sub send_to_api {
         eval {
             my $api_token = Irssi::settings_get_str('irssinotifier_api_token');
             my $proxy     = Irssi::settings_get_str('irssinotifier_https_proxy');
+            my $ua = new LWP::UserAgent(ssl_opts => { verify_hostname => 0, SSL_ca_path=>'/etc/ssl/certs'});
 
             if($proxy) {
                 $ENV{https_proxy} = $proxy;
             }
 
-            my $wget_cmd = "wget --tries=2 --timeout=10 --no-check-certificate -qO- /dev/null";
             my $api_url;
-            my $data;
+            my $req;
 
             if ($type eq 'notification') {
                 $lastMsg = Irssi::strip_codes($lastMsg);
@@ -284,20 +284,28 @@ sub send_to_api {
                 $lastNick   = encrypt($lastNick);
                 $lastTarget = encrypt($lastTarget);
 
-                $data = "--post-data=apiToken=$api_token\\&message=$lastMsg\\&channel=$lastTarget\\&nick=$lastNick\\&version=$VERSION";
                 $api_url = "https://irssinotifier.appspot.com/API/Message";
+                $req = POST $api_url,
+                    [ apiToken => $api_token,
+                      message => $lastMsg,
+                      channel => $lastTarget,
+                      nick => $lastNick,
+                      version => $VERSION ];
             } elsif ($type eq 'cmd') {
                 $command = encrypt($command);
-                $data    = "--post-data=apiToken=$api_token\\&command=$command";
                 $api_url = "https://irssinotifier.appspot.com/API/Command";
+                $req = POST $api_url,
+                    [ apiToken => $api_token,
+                      command => $command ];
             }
 
-            my $result =  `$wget_cmd $data $api_url`;
-            if (($? >> 8) != 0) {
+            my $result=$ua->request($req);
+
+            if ($result->is_success) {
+                print $writeHandle "1 OK\n";
+            } else {
                 # Something went wrong, might be network error or authorization issue. Probably no need to alert user, though.
                 print $writeHandle "0 FAIL\n";
-            } else {
-                print $writeHandle "1 OK\n";
             }
         }; # end eval
 
