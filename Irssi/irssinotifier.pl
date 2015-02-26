@@ -7,6 +7,12 @@ use IPC::Open2 qw(open2);
 use Fcntl;
 use POSIX;
 use Encode;
+use HTTP::Request::Common qw(POST);
+use LWP::UserAgent;
+use MIME::Base64;
+use Digest::MD5 qw(md5 md5_base64);
+use Crypt::GCrypt;
+use Math::Random::ISAAC;
 use vars qw($VERSION %IRSSI);
 
 $VERSION = "20";
