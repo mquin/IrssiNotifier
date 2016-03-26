@@ -15,7 +15,7 @@ use Crypt::GCrypt;
 use Math::Random::ISAAC;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = "20";
+$VERSION = "21";
 %IRSSI   = (
     authors     => "Lauri \'murgo\' Härsilä",
     contact     => "murgo\@iki.fi",
@@ -23,7 +23,7 @@ $VERSION = "20";
     description => "Send notifications about irssi highlights to server",
     license     => "Apache License, version 2.0",
     url         => "https://irssinotifier.appspot.com",
-    changed     => "2014-04-08"
+    changed     => "2016-03-26"
 );
 
 # Sometimes, for some unknown reason, perl emits warnings like the following:
